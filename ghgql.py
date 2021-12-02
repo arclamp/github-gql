@@ -126,12 +126,16 @@ def run_query(api_key, query):
 
 
 @click.command()
-@click.option("-c", "--credential-file", type=click.Path(), required=True)
-@click.option("-o", "--organization", type=str, required=True)
-@click.option("-r", "--repo", type=str, required=True)
-@click.option("-p", "--project", type=int, required=True)
-@click.option("-d", "--dry-run", is_flag=True, default=False)
+@click.option("-c", "--credential-file", type=click.Path(), required=True, help="Path to a file containing your GitHub API key")
+@click.option("-o", "--organization", type=str, metavar="NAME", required=True, help="The GitHub org containing both the beta project and the repo to file issues from")
+@click.option("-r", "--repo", type=str, metavar="NAME", required=True, help="The repository from which to file issues in the project")
+@click.option("-p", "--project", type=int, metavar="NUMBER", required=True, help="The beta project number to file new issues to")
+@click.option("-d", "--dry-run", is_flag=True, default=False, help="Don't actually file the issues")
 def main(credential_file, organization, repo, project, dry_run):
+    """
+    A Python script that takes issues from a repository and files them in a GitHub Beta Project.
+    """
+
     # Read the user's GitHub API token from disk.
     api_key = get_api_key(credential_file)
 
