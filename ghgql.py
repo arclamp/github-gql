@@ -1,5 +1,4 @@
 import click
-from pprint import pprint
 import requests
 from requests import api
 
