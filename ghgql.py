@@ -42,10 +42,12 @@ def get_open_issues(api_key, organization, repo):
     """)
 
     data = result["data"]["repository"]["issues"]["edges"]
-    titles = [v["node"]["title"] for v in data]
-    cursor = data[-1]["cursor"]
+    titles = []
 
-    while True:
+    while len(data) > 0:
+        titles += [v["node"]["title"] for v in data]
+        cursor = data[-1]["cursor"]
+
         result = run_query(api_key, f"""
             query {{
                 repository(owner: "{organization}", name: "{repo}") {{
@@ -63,12 +65,6 @@ def get_open_issues(api_key, organization, repo):
         """)
 
         data = result["data"]["repository"]["issues"]["edges"]
-
-        if len(data) == 0:
-            break
-
-        titles += [v["node"]["title"] for v in data]
-        cursor = data[-1]["cursor"]
     
     return titles
 
