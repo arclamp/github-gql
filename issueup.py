@@ -128,10 +128,10 @@ def run_query(api_key, query):
 @click.command()
 @click.option("-c", "--credential-file", type=click.Path(), required=True, help="Path to a file containing your GitHub API key")
 @click.option("-o", "--organization", type=str, metavar="NAME", required=True, help="The GitHub org containing both the beta project and the repo to file issues from")
-@click.option("-r", "--repo", type=str, metavar="NAME", required=True, help="The repository from which to file issues in the project")
+@click.option("-r", "--repo", "repos", type=str, metavar="NAME", multiple=True, required=True, help="The repository from which to file issues in the project (can appear multiple times)")
 @click.option("-p", "--project", type=int, metavar="NUMBER", required=True, help="The beta project number to file new issues to")
 @click.option("-d", "--dry-run", is_flag=True, default=False, help="Don't actually file the issues")
-def main(credential_file, organization, repo, project, dry_run):
+def main(credential_file, organization, repos, project, dry_run):
     """
     A Python script that takes issues from a repository and files them in a GitHub Beta Project.
     """
@@ -143,11 +143,6 @@ def main(credential_file, organization, repo, project, dry_run):
     project_info = get_project_info(api_key, organization, project)
     print(f'Found project "{project_info["title"]}" ({organization}/{project})')
 
-    # Get the open issues (the ones that may need to be added to the project).
-    print(f"Getting open issues from {organization}/{repo}")
-    open_issues = get_open_issues(api_key, organization, repo)
-    print(f"Found {len(open_issues)}")
-
     # Get the existing issues from the project (to prevent attempting to add these again).
     print(f"Getting existing issues from project {project}")
     project_issues = get_project_issues(api_key, organization, project)
@@ -156,24 +151,31 @@ def main(credential_file, organization, repo, project, dry_run):
     # Gather a set of existing issues by org/number.
     filed = {f'{v["repository"]}/{v["number"]}' for v in project_issues}
 
-    # One by one add issues if they aren't already in the project.
-    for issue in open_issues:
-        uri = f'{issue["repository"]}/{issue["number"]}'
-        if uri not in filed:
-            print(f"Adding {uri}...", end="", flush=True)
-            if not dry_run:
-                run_query(api_key, f"""
-                    mutation {{
-                        addProjectNextItem(input: {{projectId: "{project_info["id"]}" contentId: "{issue["id"]}"}}) {{
-                            projectNextItem {{
-                                id
+    # Repeat for each repo provided.
+    for repo in repos:
+        # Get the open issues (the ones that may need to be added to the project).
+        print(f"Getting open issues from {organization}/{repo}")
+        open_issues = get_open_issues(api_key, organization, repo)
+        print(f"Found {len(open_issues)}")
+
+        # One by one add issues if they aren't already in the project.
+        for issue in open_issues:
+            uri = f'{issue["repository"]}/{issue["number"]}'
+            if uri not in filed:
+                print(f"Adding {uri}...", end="", flush=True)
+                if not dry_run:
+                    run_query(api_key, f"""
+                        mutation {{
+                            addProjectNextItem(input: {{projectId: "{project_info["id"]}" contentId: "{issue["id"]}"}}) {{
+                                projectNextItem {{
+                                    id
+                                }}
                             }}
                         }}
-                    }}
-                """)
-            print("done")
-        else:
-            print(f"{uri}...skipping")
+                    """)
+                print("done")
+            else:
+                print(f"{uri}...skipping")
 
 if __name__ == "__main__":
     main()
