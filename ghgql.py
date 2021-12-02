@@ -26,8 +26,6 @@ def get_project_info(api_key, organization, project):
 
 def collect_all(api_key, template, drill, filt, pull):
     result = run_query(api_key, template.replace("XXX", ""))
-    print(template)
-    pprint(result)
     data = drill(result)
     final = []
 
@@ -134,27 +132,43 @@ def run_query(api_key, query):
 @click.option("-r", "--repo", type=str, required=True)
 @click.option("-p", "--project", type=int, required=True)
 def main(credential_file, organization, repo, project):
+    # Read the user's GitHub API token from disk.
     api_key = get_api_key(credential_file)
 
+    # Retrieve project info (the name and the GraphQL ID).
     project_info = get_project_info(api_key, organization, project)
+    print(f'Found project "{project_info["title"]}" ({organization}/{project})')
 
+    # Get the open issues (the ones that may need to be added to the project).
     print(f"Getting open issues from {organization}/{repo}")
     open_issues = get_open_issues(api_key, organization, repo)
     print(f"Found {len(open_issues)}")
 
-    print(f"Getting issues from project {project}")
+    # Get the existing issues from the project (to prevent attempting to add these again).
+    print(f"Getting existing issues from project {project}")
     project_issues = get_project_issues(api_key, organization, project)
     print(f"Found {len(project_issues)}")
 
+    # Gather a set of existing issues by org/number.
     filed = {f'{v["repository"]}/{v["number"]}' for v in project_issues}
-    pprint(filed)
 
+    # One by one add issues if they aren't already in the project.
     for issue in open_issues:
         uri = f'{issue["repository"]}/{issue["number"]}'
         if uri not in filed:
-            print(f"{uri}")
+            print(f"Adding {uri}...", end="", flush=True)
+            run_query(api_key, f"""
+                mutation {{
+                    addProjectNextItem(input: {{projectId: "{project_info["id"]}" contentId: "{issue["id"]}"}}) {{
+                        projectNextItem {{
+                            id
+                        }}
+                    }}
+                }}
+            """)
+            print("done")
         else:
-            print(f"{uri} (skipping)")
+            print(f"{uri}...skipping")
 
 if __name__ == "__main__":
     main()
