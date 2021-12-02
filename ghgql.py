@@ -131,7 +131,8 @@ def run_query(api_key, query):
 @click.option("-o", "--organization", type=str, required=True)
 @click.option("-r", "--repo", type=str, required=True)
 @click.option("-p", "--project", type=int, required=True)
-def main(credential_file, organization, repo, project):
+@click.option("-d", "--dry-run", is_flag=True, default=False)
+def main(credential_file, organization, repo, project, dry_run):
     # Read the user's GitHub API token from disk.
     api_key = get_api_key(credential_file)
 
@@ -157,15 +158,16 @@ def main(credential_file, organization, repo, project):
         uri = f'{issue["repository"]}/{issue["number"]}'
         if uri not in filed:
             print(f"Adding {uri}...", end="", flush=True)
-            run_query(api_key, f"""
-                mutation {{
-                    addProjectNextItem(input: {{projectId: "{project_info["id"]}" contentId: "{issue["id"]}"}}) {{
-                        projectNextItem {{
-                            id
+            if not dry_run:
+                run_query(api_key, f"""
+                    mutation {{
+                        addProjectNextItem(input: {{projectId: "{project_info["id"]}" contentId: "{issue["id"]}"}}) {{
+                            projectNextItem {{
+                                id
+                            }}
                         }}
                     }}
-                }}
-            """)
+                """)
             print("done")
         else:
             print(f"{uri}...skipping")
