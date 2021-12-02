@@ -50,6 +50,10 @@ def get_open_issues(api_key, organization, repo):
                         node {{
                             title
                             id
+                            repository {{
+                                name
+                            }}
+                            number
                         }}
                     }}
                 }}
@@ -61,6 +65,8 @@ def get_open_issues(api_key, organization, repo):
     pull = lambda rec: {
         "title": rec["title"],
         "id": rec["id"],
+        "repository": rec["repository"]["name"],
+        "number": rec["number"]
     }
 
     return collect_all(api_key, template, drill, lambda x: True, pull)
@@ -103,6 +109,8 @@ def get_project_issues(api_key, organization, project):
         "id": rec["id"],
         "did": rec["databaseId"],
         "title": rec["title"],
+        "repository": rec["content"]["repository"]["name"],
+        "number": rec["content"]["number"],
     }
 
     return collect_all(api_key, template, drill, filt, pull)
@@ -133,12 +141,20 @@ def main(credential_file, organization, repo, project):
     print(f"Getting open issues from {organization}/{repo}")
     open_issues = get_open_issues(api_key, organization, repo)
     print(f"Found {len(open_issues)}")
-    pprint(open_issues)
 
-    print(f"Getting items from project {project}")
-    project_items = get_project_issues(api_key, organization, project)
-    print(f"Found {len(project_items)}")
-    pprint(project_items)
+    print(f"Getting issues from project {project}")
+    project_issues = get_project_issues(api_key, organization, project)
+    print(f"Found {len(project_issues)}")
+
+    filed = {f'{v["repository"]}/{v["number"]}' for v in project_issues}
+    pprint(filed)
+
+    for issue in open_issues:
+        uri = f'{issue["repository"]}/{issue["number"]}'
+        if uri not in filed:
+            print(f"{uri}")
+        else:
+            print(f"{uri} (skipping)")
 
 if __name__ == "__main__":
     main()
