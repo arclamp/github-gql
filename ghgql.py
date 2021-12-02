@@ -24,66 +24,55 @@ def get_project_info(api_key, organization, project):
     return result["data"]["organization"]["projectNext"]
 
 
+def collect_all(api_key, template, drill, filt, pull):
+    result = run_query(api_key, template.replace("XXX", ""))
+    print(template)
+    pprint(result)
+    data = drill(result)
+    final = []
+
+    while len(data) > 0:
+        final += [pull(v["node"]) for v in data if filt(v)]
+        cursor = data[-1]["cursor"]
+
+        result = run_query(api_key, template.replace("XXX", f', after: "{cursor}"'))
+        data = drill(result)
+
+    return final
+
 def get_open_issues(api_key, organization, repo):
-    result = run_query(api_key, f"""
+    template = f"""
         query {{
             repository(owner: "{organization}", name: "{repo}") {{
-                issues(states: [OPEN], first: 10) {{
+                issues(states: [OPEN], first: 10XXX) {{
                     edges {{
                         cursor
                         node {{
                             title
                             id
-                            databaseId
                         }}
                     }}
                 }}
             }}
         }}
-    """)
+    """
 
-    data = result["data"]["repository"]["issues"]["edges"]
-    titles = []
+    drill = lambda rec: rec["data"]["repository"]["issues"]["edges"] 
+    pull = lambda rec: {
+        "title": rec["title"],
+        "id": rec["id"],
+    }
 
-    while len(data) > 0:
-        def pull(rec):
-            return {
-                "title": rec["title"],
-                "id": rec["id"],
-                "did": rec["databaseId"],
-            }
-        titles += [pull(v["node"]) for v in data]
-        cursor = data[-1]["cursor"]
-
-        result = run_query(api_key, f"""
-            query {{
-                repository(owner: "{organization}", name: "{repo}") {{
-                    issues(states: [OPEN], first: 50, after: "{cursor}") {{
-                        edges {{
-                            cursor
-                            node {{
-                                title
-                                id
-                                databaseId
-                            }}
-                        }}
-                    }}
-                }}
-            }}
-        """)
-
-        data = result["data"]["repository"]["issues"]["edges"]
-    
-    return titles
+    return collect_all(api_key, template, drill, lambda x: True, pull)
 
 
-def get_project_items(api_key, organization, project):
-    result = run_query(api_key, f"""
+def get_project_issues(api_key, organization, project):
+    template = f"""
         query {{
             organization(login: "{organization}") {{
                 projectNext(number: {project}) {{
                     id
-                    items(first: 50) {{
+                    items(first: 50XXX) {{
                         edges {{
                             cursor
                             node {{
@@ -91,43 +80,11 @@ def get_project_items(api_key, organization, project):
                                 title
                                 databaseId
                                 content {{
-                                    __typename
-                                }}
-                            }}
-                        }}
-                    }}
-                }}
-            }}
-        }}
-    """)
-
-    data = result["data"]["organization"]["projectNext"]["items"]["edges"]
-    items = []
-
-    while len(data) > 0:
-        def pull(rec):
-            return {
-                "id": rec["id"],
-                "did": rec["databaseId"],
-                "title": rec["title"],
-            }
-        items += [pull(v["node"]) for v in data if v["node"]["content"] is not None and v["node"]["content"]["__typename"] == "Issue"]
-        cursor = data[-1]["cursor"]
-        
-        result = run_query(api_key, f"""
-            query {{
-                organization(login: "{organization}") {{
-                    projectNext(number: {project}) {{
-                        id
-                        items(first: 50, after: "{cursor}") {{
-                            edges {{
-                                cursor
-                                node {{
-                                    id
-                                    title
-                                    databaseId
-                                    content {{
-                                        __typename
+                                    ... on Issue {{
+                                        number
+                                        repository {{
+                                            name
+                                        }}
                                     }}
                                 }}
                             }}
@@ -135,11 +92,21 @@ def get_project_items(api_key, organization, project):
                     }}
                 }}
             }}
-        """)
+        }}
+    """
 
-        data = result["data"]["organization"]["projectNext"]["items"]["edges"]
+    drill = lambda rec: rec["data"]["organization"]["projectNext"]["items"]["edges"]
 
-    return items
+    filt = lambda rec: bool(rec["node"]["content"])
+
+    pull = lambda rec: {
+        "id": rec["id"],
+        "did": rec["databaseId"],
+        "title": rec["title"],
+    }
+
+    return collect_all(api_key, template, drill, filt, pull)
+
 
 def run_query(api_key, query):
     req = requests.post(
@@ -169,7 +136,7 @@ def main(credential_file, organization, repo, project):
     pprint(open_issues)
 
     print(f"Getting items from project {project}")
-    project_items = get_project_items(api_key, organization, project)
+    project_items = get_project_issues(api_key, organization, project)
     print(f"Found {len(project_items)}")
     pprint(project_items)
 
