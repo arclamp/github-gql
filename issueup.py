@@ -29,7 +29,7 @@ def get_project_info(api_key, organization, project):
 
 
 def collect_all(api_key, template, drill, filt, pull):
-    result = run_query(api_key, template.replace("XXX", ""))
+    result = run_query(api_key, template.replace("XXX", "null"))
     data = drill(result)
     final = []
 
@@ -37,7 +37,7 @@ def collect_all(api_key, template, drill, filt, pull):
         final += [pull(v["node"]) for v in data if filt(v)]
         cursor = data[-1]["cursor"]
 
-        result = run_query(api_key, template.replace("XXX", f', after: "{cursor}"'))
+        result = run_query(api_key, template.replace("XXX", f'"{cursor}"'))
         data = drill(result)
 
     return final
@@ -46,7 +46,7 @@ def get_open_issues(api_key, organization, repo):
     template = f"""
         query {{
             repository(owner: "{organization}", name: "{repo}") {{
-                issues(states: [OPEN], first: 10XXX) {{
+                issues(states: [OPEN], first: 50, after: XXX) {{
                     edges {{
                         cursor
                         node {{
@@ -63,7 +63,7 @@ def get_open_issues(api_key, organization, repo):
         }}
     """
 
-    drill = lambda rec: rec["data"]["repository"]["issues"]["edges"] 
+    drill = lambda rec: rec["data"]["repository"]["issues"]["edges"]
     pull = lambda rec: {
         "title": rec["title"],
         "id": rec["id"],
@@ -80,7 +80,7 @@ def get_project_issues(api_key, organization, project):
             organization(login: "{organization}") {{
                 projectNext(number: {project}) {{
                     id
-                    items(first: 50XXX) {{
+                    items(first: 50, after: XXX) {{
                         edges {{
                             cursor
                             node {{
