@@ -63,7 +63,7 @@ def get_open_issues(api_key, organization, repo):
         }}
     """
 
-    drill = lambda rec: rec["data"]["repository"]["issues"]["edges"] 
+    drill = lambda rec: rec["data"]["repository"]["issues"]["edges"]
     pull = lambda rec: {
         "title": rec["title"],
         "id": rec["id"],
