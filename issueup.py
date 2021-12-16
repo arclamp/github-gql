@@ -1,9 +1,14 @@
 import click
+import os
 import requests
 from requests import api
+import sys
 
 
 def get_api_key(filename):
+    if filename is None:
+        return os.getenv("GH_API_KEY")
+
     with open(filename) as f:
         return f.read().strip()
 
@@ -126,7 +131,7 @@ def run_query(api_key, query):
 
 
 @click.command()
-@click.option("-c", "--credential-file", type=click.Path(), required=True, help="Path to a file containing your GitHub API key")
+@click.option("-c", "--credential-file", type=click.Path(), help="Path to a file containing your GitHub API key")
 @click.option("-o", "--organization", type=str, metavar="NAME", required=True, help="The GitHub org containing both the beta project and the repo to file issues from")
 @click.option("-r", "--repo", "repos", type=str, metavar="NAME", multiple=True, required=True, help="The repository from which to file issues in the project (can appear multiple times)")
 @click.option("-p", "--project", type=int, metavar="NUMBER", required=True, help="The beta project number to file new issues to")
@@ -138,6 +143,9 @@ def main(credential_file, organization, repos, project, dry_run):
 
     # Read the user's GitHub API token from disk.
     api_key = get_api_key(credential_file)
+    if api_key is None:
+        print("No GitHub API key found. Set GH_API_KEY or use the -c option.")
+        sys.exit(1)
 
     # Retrieve project info (the name and the GraphQL ID).
     print(f"Getting project {organization}/{project}...", end="", flush=True)
