@@ -46,7 +46,7 @@ def get_open_issues(api_key, organization, repo):
     template = f"""
         query {{
             repository(owner: "{organization}", name: "{repo}") {{
-                issues(states: [OPEN], first: 10, after: XXX) {{
+                issues(states: [OPEN], first: 50, after: XXX) {{
                     edges {{
                         cursor
                         node {{
