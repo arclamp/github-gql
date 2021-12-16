@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "github-gql"
+name = "issueup"
 version = "0.1.0"
 description = ""
 authors = ["Roni Choudhury <roni.choudhury@kitware.com>"]
@@ -11,6 +11,9 @@ click = "^8.0.3"
 requests = "^2.26.0"
 
 [tool.poetry.dev-dependencies]
+
+[tool.poetry.scripts]
+issueup = "issueup:main"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
