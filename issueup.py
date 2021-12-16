@@ -140,28 +140,31 @@ def main(credential_file, organization, repos, project, dry_run):
     api_key = get_api_key(credential_file)
 
     # Retrieve project info (the name and the GraphQL ID).
+    print(f"Getting project {organization}/{project}...", end="", flush=True)
     project_info = get_project_info(api_key, organization, project)
-    print(f'Found project "{project_info["title"]}" ({organization}/{project})')
+    print(f'found project "{project_info["title"]}"')
 
     # Get the existing issues from the project (to prevent attempting to add these again).
-    print(f"Getting existing issues from project {project}")
+    print(f"Getting existing issues from project {project}...", end="", flush=True)
     project_issues = get_project_issues(api_key, organization, project)
-    print(f"Found {len(project_issues)}")
+    print(f"found {len(project_issues)}")
 
     # Gather a set of existing issues by org/number.
     filed = {f'{v["repository"]}/{v["number"]}' for v in project_issues}
 
     # Repeat for each repo provided.
+    none = True
     for repo in repos:
         # Get the open issues (the ones that may need to be added to the project).
-        print(f"Getting open issues from {organization}/{repo}")
+        print(f"Getting open issues from {organization}/{repo}...", end="", flush=True)
         open_issues = get_open_issues(api_key, organization, repo)
-        print(f"Found {len(open_issues)}")
+        print(f"found {len(open_issues)}")
 
         # One by one add issues if they aren't already in the project.
         for issue in open_issues:
             uri = f'{issue["repository"]}/{issue["number"]}'
             if uri not in filed:
+                none = False
                 print(f"Adding {uri}...", end="", flush=True)
                 if not dry_run:
                     run_query(api_key, f"""
@@ -174,8 +177,10 @@ def main(credential_file, organization, repos, project, dry_run):
                         }}
                     """)
                 print("done")
-            else:
-                print(f"{uri}...skipping")
+
+    if none:
+        print("No new issues added (project is already up to date)")
+
 
 if __name__ == "__main__":
     main()
