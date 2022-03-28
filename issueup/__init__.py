@@ -161,6 +161,9 @@ def main(config_file, organization, repos, project, dry_run):
         print("`organization`, `repo`, and `project` arguments are all required", file=sys.stderr)
         sys.exit(1)
 
+    if dry_run:
+        print("This is a DRY RUN")
+
     # Retrieve project info (the name and the GraphQL ID).
     print(f"Getting project {organization}/{project}...", end="", flush=True)
     project_info = get_project_info(api_key, organization, project)
