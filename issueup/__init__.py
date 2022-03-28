@@ -148,7 +148,7 @@ def main(config_file, organization, repos, project, dry_run):
     # Get the API key.
     api_key = config.get("gh_api_key") or os.getenv("GH_API_KEY")
     if api_key is None:
-        print("No GitHub API key found. Set GH_API_KEY or use the -c option.")
+        print("No GitHub API key found. Set GH_API_KEY or use the -c option.", file=sys.stderr)
         sys.exit(1)
 
     # Ensure that all required options are set, either through the command line
