@@ -3,14 +3,15 @@ import os
 import requests
 from requests import api
 import sys
+import yaml
 
 
-def get_api_key(filename):
+def read_config(filename):
     if filename is None:
-        return os.getenv("GH_API_KEY")
+        return {}
 
     with open(filename) as f:
-        return f.read().strip()
+        return yaml.safe_load(f)
 
 
 def get_project_info(api_key, organization, project):
@@ -131,21 +132,45 @@ def run_query(api_key, query):
 
 
 @click.command()
-@click.option("-c", "--credential-file", type=click.Path(), help="Path to a file containing your GitHub API key")
-@click.option("-o", "--organization", type=str, metavar="NAME", required=True, help="The GitHub org containing both the beta project and the repo to file issues from")
-@click.option("-r", "--repo", "repos", type=str, metavar="NAME", multiple=True, required=True, help="The repository from which to file issues in the project (can appear multiple times)")
-@click.option("-p", "--project", type=int, metavar="NUMBER", required=True, help="The beta project number to file new issues to")
+@click.option("-c", "--config", "config_file", type=click.Path(), help="Path to a YAML config file")
+@click.option("--no-config", is_flag=True, default=False, help="Don't use any config file, including the default .issueup")
+@click.option("-o", "--organization", type=str, metavar="NAME", help="The GitHub org containing both the beta project and the repo to file issues from")
+@click.option("-r", "--repo", "repos", type=str, metavar="NAME", multiple=True, help="The repository from which to file issues in the project (can appear multiple times)")
+@click.option("-p", "--project", type=int, metavar="NUMBER", help="The beta project number to file new issues to")
 @click.option("-d", "--dry-run", is_flag=True, default=False, help="Don't actually file the issues")
-def main(credential_file, organization, repos, project, dry_run):
+def main(config_file, no_config, organization, repos, project, dry_run):
     """
     A Python script that takes issues from a repository and files them in a GitHub Beta Project.
     """
 
-    # Read the user's GitHub API token from disk.
-    api_key = get_api_key(credential_file)
+    # Establish a default config file.
+    if config_file is None:
+        if os.path.exists(".issueup.yaml"):
+            config_file = ".issueup.yaml"
+
+    # Read the config file.
+    config = {}
+    if not no_config:
+        config = read_config(config_file)
+
+    # Get the API key.
+    api_key = config.get("gh_api_key") or os.getenv("GH_API_KEY")
     if api_key is None:
-        print("No GitHub API key found. Set GH_API_KEY or use the -c option.")
+        print("No GitHub API key found. Set GH_API_KEY or use the -c option.", file=sys.stderr)
         sys.exit(1)
+
+    # Ensure that all required options are set, either through the command line
+    # arguments, or the config file.
+    organization = organization or config.get("organization")
+    repos = repos or config.get("repo")
+    project = project or config.get("project")
+
+    if organization is None or repos is None or project is None:
+        print("`organization`, `repo`, and `project` arguments are all required", file=sys.stderr)
+        sys.exit(1)
+
+    if dry_run:
+        print("This is a DRY RUN")
 
     # Retrieve project info (the name and the GraphQL ID).
     print(f"Getting project {organization}/{project}...", end="", flush=True)
